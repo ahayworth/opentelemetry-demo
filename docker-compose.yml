@@ -612,6 +612,21 @@ services:
       - METRICS_STORAGE_TYPE=prometheus
     logging: *logging
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:22.12
+    container_name: clickhouse
+    ports:
+      - "8123"
+      - "9000"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    ulimits:
+      nofile: 262144
+    cap_add:
+      - NET_ADMIN
+      - IPC_LOCK
+    logging: *logging
+
   # Grafana
   grafana:
     image: grafana/grafana:9.1.0
@@ -619,13 +634,16 @@ services:
     volumes:
       - ./src/grafana/grafana.ini:/etc/grafana/grafana.ini
       - ./src/grafana/provisioning/:/etc/grafana/provisioning/
+    environment:
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource,vertamedia-clickhouse-datasource
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: vertamedia-clickhouse-datasource
     ports:
       - "${GRAFANA_SERVICE_PORT}"
     logging: *logging
 
   # OpenTelemetry Collector
   otelcol:
-    image: otel/opentelemetry-collector-contrib:0.69.0
+    image: otel/opentelemetry-collector-contrib:0.70.0
     container_name: otel-col
     deploy:
       resources:
@@ -643,6 +661,7 @@ services:
       - "8888"          # metrics endpoint
     depends_on:
       - jaeger
+      - clickhouse
     logging: *logging
 
   # Prometheus
@@ -716,3 +735,6 @@ services:
       - recommendationservice
       - shippingservice
       - quoteservice
+
+volumes:
+  clickhouse-data: {}
