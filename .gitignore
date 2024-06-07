@@ -58,3 +58,5 @@ test/tracetesting/tracetesting-vars.yaml
 /src/currencyservice/proto
 /src/checkoutservice/genproto
 /src/accountingservice/genproto
+
+tprof-rs/target

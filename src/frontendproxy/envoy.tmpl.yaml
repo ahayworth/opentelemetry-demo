@@ -41,6 +41,8 @@ static_resources:
                           route: { cluster: loadgen, prefix_rewrite: "/" }
                         - match: { prefix: "/otlp-http/" }
                           route: { cluster: opentelemetry_collector_http, prefix_rewrite: "/" }
+                        - match: { prefix: "/clickhouse/" }
+                          route: { cluster: clickhouse, prefix_rewrite: "/" }
                         - match: { prefix: "/jaeger" }
                           route: { cluster: jaeger }
                         - match: { prefix: "/grafana" }
@@ -154,6 +156,18 @@ static_resources:
                     socket_address:
                       address: ${GRAFANA_SERVICE_HOST}
                       port_value: ${GRAFANA_SERVICE_PORT}
+    - name: clickhouse
+      type: STRICT_DNS
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: clickhouse
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: clickhouse
+                      port_value: 8123
     - name: jaeger
       type: STRICT_DNS
       lb_policy: ROUND_ROBIN

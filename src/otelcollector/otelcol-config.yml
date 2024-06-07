@@ -18,6 +18,11 @@ receivers:
     collection_interval: 10s
 
 exporters:
+  clickhouse:
+    endpoint: "clickhouse://clickhouse:9000"
+    username: "otel"
+    password: "otel"
+    database: "otel"
   debug:
   otlp:
     endpoint: "jaeger:4317"
@@ -45,12 +50,12 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlp, debug, spanmetrics]
+      exporters: [clickhouse, otlp, debug, spanmetrics]
     metrics:
       receivers: [httpcheck/frontendproxy, redis, otlp, spanmetrics]
       processors: [batch]
-      exporters: [otlphttp/prometheus, debug]
+      exporters: [clickhouse, otlphttp/prometheus, debug]
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [opensearch, debug]
+      exporters: [clickhouse, opensearch, debug]

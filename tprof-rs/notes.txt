@@ -1,0 +1,169 @@
+tprof:
+
+#run applications and let tprof collect/analyze traces
+./tprof.py
+
+#run flask web application to generate reports
+cd ./web_app
+./web_app.py ../results/*.p
+
+tprof.py: queries traces, analyzes, and dumps them out
+- opens grpc to jaeger (proxied?)
+- ExampleApp class:
+  - tail_cutoff = 90
+  - abbrev = {} # place to add shorthands to service and operation names
+  - trace_req_type: takes gather obj, trace id; gets traces via gatherer; return next(iter(trace_obj.spans.items()))[1].service_name.split("_")[0]
+  - run method:
+    - runs ad_service and booking_service, which are ELF binaries checked into the repo? context indicates that these generate traces which will show up in jaeger
+    - returns start, end, and num traces...
+- Gather: abstract class
+  - find_trace_ids: Given stub, services maps, start time, end time and search depth, return all the associated trace ids
+    - Inputs: stub, services in map, time_start in nanosec, time_end in nanosec, and number of results
+    - Output: a list of all associated traces ids
+    - An example of services maps: srvs = { "user-timeline-services":[operation1, operation2], }
+  - get_trace: Given trace_id, return all the spans associated with that trace
+    - Inputs: trace id
+    - Outputs: a trace object (i.e. all spans in that trace)
+  - Concrete Jager implementation:
+    - takes a "stub" object, which seems to be a GRPC thingie
+    - sets "master span name" to "THEMASTERSPAN"
+    - DUR_MIN = 1ns, DUR_MAX = 10min
+    - self.abbrev = app.abbrev
+    - find_trace_ids:
+      - if no services are given, tries to get all services
+      - for every service name (either passed-in, or found), creates set of operations (either from passed-in data, or dynamically queries for them)
+      - for every operation, queries for all traces using service name, operation name, tags = {}, min/max time, min/max duration, search_depth = num_results (also passed in)
+      - for trace in results; for span in trace; asserts trace id is not weird then adds each span's trace id to a set; and then returns the set as a list.
+      - seems like this is a weird way to do things, but idk
+   - get_trace:
+     - checks local cache for trace id and returns cached answer if found
+     - creates a list of all spans in the trace
+     - creates a "trace obj" from trace id and spans
+     - caches, then returns
+
+"trace object" - seems to mainly be a tree-structure of a trace, reconstructed weirdly from jaeger...
+
+creates a trace object, with trace id.
+sets a root span of self.master_span_name - i guess jaeger doesn't have a "root" span?
+very_start = float(inf)
+very_end = 0
+
+for span in all_spans
+  all_span_ids.add(span.span_id)
+
+for span in all_spans
+  if span_id not in trace_obj.spans; trace_obj.spans[span_id] = span()
+  bails out if span is duplicated, weird
+
+  new_span = trace_obj.spans[span_id]
+  new_span.operation_name = self.__simplify_name(span.operation_name)
+  new_span.service_name = self.__simplify_name(span.process.service_name)
+  new_span.start_time = span.start_time.seconds*(10**9)+span.start_time.nanos
+  new_span.end_time = new_span.start_time + span.duration.seconds*(10**9) + span.duration.nanos
+
+  calculate T (trace duration)
+  if new_span.start_time < very_start
+    very_start = new_span.start_time
+  if new_span.end_time > very_end
+    very_end = new_span.end_time
+
+  # really unclear what exactly they're trying to do here
+  for every span in 'span references':
+    bails if it references another trace?
+    # i think they are trying to see if there were missing spans; but what do?
+    if referenced span id is not in all_span ids; new_span.refs.append(trace_obj.root); trace_obj.status[Trace_Status.span_drop.value] = 1
+    else: new_span.refs.append(reference.span_id.hex())
+  else if no span references: new_span.refs.append(trace_obj.root)
+
+  # ah okay - "#jaeger traces doesn't have master spans, add an aritificial one so that each trace only has one root"
+  they construct an artificial root span here that spans the total duration of the earliest start and latest end of all spans found.
+
+  trace_obj.T = very_end - very_start
+
+  #add children to trace
+  for span_id, span_object in trace_obj.spans.items():
+    if span_id == root: continue
+    asserts each span has exactly one parent
+    refs_id = span_object.refs[0]
+    if refs_id not in all_calls.keys():
+      all_calls[refs_id] = {}
+    calls = all_calls[refs_id]
+    if span_id not in calls.keys():
+      calls[span_id] = Callee()
+    else:
+      bails on duplicate span here
+    call = calls[span_id]
+    call.start_time = span_object.start_time
+    call.end_time = span_object.end_time
+
+  for caller_id, callee_map in all_calls:
+    for callee_id in callee_map.keys:
+      trace_obj.spans[caller_id].children.append(callee_id)
+
+  return trace_obj
+
+  simplify_name == look up self.abbrev and use if found
+
+
+analyzes = [Analyze_1(jaeger, app),  Analyze_2(jaeger, app), Analyze_3(jaeger, app), Analyze_4(jaeger, app)]
+trace_ids = []
+gather_counter = 1
+
+runs app
+gathers trace ids
+
+ret = process_in_layer(trace_ids, 0, analyzes, init_path, jaeger)
+dumps pickle
+
+
+process_in_layer:
+  # layer = 0-4
+  ret = []
+  if layer < len(analyzes):
+    groups = analyzes[layer].group(trace_ids)
+    num_groups = len(groups)
+    max_num_padding = int(math.log10(num_groups+1))
+    results = []
+    #get a few examples about groups
+    for name, group in groups.items():
+      result = analyzes[layer].profile(group)
+      results.append((result, name))
+
+    results.sort
+
+    use_idx = [False, False, True, True, True] #treat layer 1 and 2 seperately from other layers
+    for i, (result, name) in enumerate(results):
+      if use_idx[layer]:
+        num_paddings = max_num_padding - int(math.log10(i+1))
+        paddings = num_paddings * '0'
+        local_path = path + f"/layer{layer+1}-{paddings}{i+1}"
+      else
+        trace_obj = jaeger.get_trace(result.traces[0]) #use the first one as an example; trace objects in one bucket should share the same bitarray
+        local_path = path + f"/layer{layer+1}-{name}"
+      make local path...
+      if layer == 0 or layer == 1:
+        output_file_layer_1_2(local_path, result)
+      else:
+        output_file(local_path, result)
+
+      # recurse into next layer
+      child_ret = process_in_layer(result.traces, layer+1, analyzes, local_path, jaeger)
+      ret.append((name, result, child_ret))
+  return ret
+
+output files are:
+  - named according to the number of traces in that layer result
+  - contain example traces: first, middle, last in list
+  - for layer 1/2 only
+    - 99 percentile (whatever that means in context)
+    - "left to 99percentile"
+    - "right to 99percentile"
+  - stringifies the whole result
+
+from analyze_all_reqs import Analyze as Analyze_1
+from analyze_by_req_type import Analyze as Analyze_2
+from analyze_child_diffs import Analyze as Analyze_3
+from analyze_subspans import Analyze as Analyze_4
+
+
+web_app.py: proxies to jaeger? also has /reports endpoint that creates reports from pickle files

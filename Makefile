@@ -130,6 +130,7 @@ start:
 	@echo "Go to http://localhost:8080 for the demo UI."
 	@echo "Go to http://localhost:8080/jaeger/ui for the Jaeger UI."
 	@echo "Go to http://localhost:8080/grafana/ for the Grafana UI."
+	@echo "Go to http://localhost:8080/clickhouse/play for the Clickhouse UI."
 	@echo "Go to http://localhost:8080/loadgen/ for the Load Generator UI."
 	@echo "Go to https://opentelemetry.io/docs/demo/feature-flags/ to learn how to change feature flags."
 
@@ -141,6 +142,7 @@ start-minimal:
 	@echo "Go to http://localhost:8080 for the demo UI."
 	@echo "Go to http://localhost:8080/jaeger/ui for the Jaeger UI."
 	@echo "Go to http://localhost:8080/grafana/ for the Grafana UI."
+	@echo "Go to http://localhost:8080/clickhouse/play for the Clickhouse UI."
 	@echo "Go to http://localhost:8080/loadgen/ for the Load Generator UI."
 	@echo "Go to https://opentelemetry.io/docs/demo/feature-flags/ to learn how to change feature flags."
 
@@ -153,6 +155,7 @@ start-odd:
 	@echo "Go to http://localhost:8080 for the demo UI."
 	@echo "Go to http://localhost:8080/jaeger/ui for the Jaeger UI."
 	@echo "Go to http://localhost:8080/grafana/ for the Grafana UI."
+	@echo "Go to http://localhost:8080/clickhouse/play for the Clickhouse UI."
 	@echo "Go to http://localhost:8080/loadgen/ for the Load Generator UI."
 	@echo "Go to http://localhost:11633/ for the Tracetest Web UI."
 	@echo "Go to https://opentelemetry.io/docs/demo/feature-flags/ to learn how to change feature flags."
@@ -199,4 +202,3 @@ ifdef service
 else
 	@echo "Please provide a service name using `service=[service name]` or `SERVICE=[service name]`"
 endif
-

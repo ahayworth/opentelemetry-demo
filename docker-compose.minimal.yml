@@ -250,6 +250,8 @@ services:
       - "${ENVOY_PORT}:${ENVOY_PORT}"
       - 10000:10000
     environment:
+      - CLICKHOUSE_HTTP_PORT
+      - CLICKHOUSE_HOST
       - FRONTEND_PORT
       - FRONTEND_HOST
       - FEATURE_FLAG_SERVICE_PORT
@@ -271,6 +273,8 @@ services:
       frontend:
         condition: service_started
       loadgenerator:
+        condition: service_started
+      clickhouse:
         condition: service_started
       jaeger:
         condition: service_started
@@ -507,6 +511,25 @@ services:
   # ********************
   # Telemetry Components
   # ********************
+  # Clickhouse
+  clickhouse:
+    image: ${CLICKHOUSE_IMAGE}
+    container_name: clickhouse
+    restart: unless-stopped
+    environment:
+      - CLICKHOUSE_DB=otel
+      - CLICKHOUSE_USER=otel
+      - CLICKHOUSE_PASSWORD=otel
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    ports:
+      - "${CLICKHOUSE_NATIVE_PORT}"
+      - "${CLICKHOUSE_HTTP_PORT}"
+    logging: *logging
+
   # Jaeger
   jaeger:
     image: ${JAEGERTRACING_IMAGE}
@@ -564,6 +587,7 @@ services:
       - "${OTEL_COLLECTOR_PORT_GRPC}"
       - "${OTEL_COLLECTOR_PORT_HTTP}"
     depends_on:
+      - clickhouse
       - jaeger
     logging: *logging
     environment:
