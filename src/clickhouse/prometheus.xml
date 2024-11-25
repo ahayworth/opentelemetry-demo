@@ -1,0 +1,43 @@
+<clickhouse>
+  <prometheus>
+    <port from_env="CLICKHOUSE_PROMETHEUS_PORT" />
+    <handlers>
+
+      <metrics_endpoint>
+        <url>/metrics</url>
+        <handler>
+          <type>expose_metrics</type>
+          <metrics>true</metrics>
+          <asynchronous_metrics>true</asynchronous_metrics>
+          <events>true</events>
+          <errors>true</errors>
+        </handler>
+      </metrics_endpoint>
+
+      <remote_write_endpoint>
+        <url>/api/v1/write</url>
+        <handler>
+          <type>remote_write</type>
+          <table>otel.metrics</table>
+        </handler>
+      </remote_write_endpoint>
+
+      <remote_read_endpoint>
+        <url>/api/v1/read</url>
+        <handler>
+          <type>remote_read</type>
+          <table>otel.metrics</table>
+        </handler>
+      </remote_read_endpoint>
+
+    </handlers>
+  </prometheus>
+
+  <protocols>
+    <prometheus_protocol>
+      <type>prometheus</type>
+      <host>0.0.0.0</host>
+      <port from_env="CLICKHOUSE_PROMETHEUS_PORT" />
+    </prometheus_protocol>
+  </protocols>
+</clickhouse>

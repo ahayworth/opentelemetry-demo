@@ -706,6 +706,32 @@ services:
       - METRICS_STORAGE_TYPE=prometheus
     logging: *logging
 
+  # Clickhouse
+  clickhouse:
+    image: ${CLICKHOUSE_IMAGE}
+    container_name: clickhouse
+    volumes:
+      - ./src/clickhouse/allow_timeseries_table.xml:/etc/clickhouse-server/users.d/allow_timeseries_table.xml
+      - ./src/clickhouse/prometheus.xml:/etc/clickhouse-server/config.d/prometheus.xml
+      - ./src/clickhouse/timeseries.sql:/docker-entrypoint-initdb.d/timeseries.sql
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    restart: unless-stopped
+    environment:
+      - CLICKHOUSE_PROMETHEUS_PORT
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "${CLICKHOUSE_PROMETHEUS_PORT}"
+    logging: *logging
+
   # Grafana
   grafana:
     image: ${GRAFANA_IMAGE}
@@ -748,6 +774,8 @@ services:
         condition: service_started
       opensearch:
         condition: service_healthy
+      clickhouse:
+        condition: service_started
     logging: *logging
     environment:
       - ENVOY_PORT
@@ -755,6 +783,7 @@ services:
       - OTEL_COLLECTOR_HOST
       - OTEL_COLLECTOR_PORT_GRPC
       - OTEL_COLLECTOR_PORT_HTTP
+      - CLICKHOUSE_PROMETHEUS_PORT
 
   # Prometheus
   prometheus:
